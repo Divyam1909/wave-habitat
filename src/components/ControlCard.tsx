@@ -2,10 +2,15 @@ import React, { useState, useEffect } from 'react';
 import styled, { keyframes, css } from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCog, faPowerOff, faClock, faSun, faLightbulb, faMoon, faSliders } from '@fortawesome/free-solid-svg-icons';
+import { useUserMode } from '../contexts/UserModeContext';
+import { useGroups } from '../contexts/GroupsContext';
 
 interface ControlCardProps {
   title: string;
   icon: 'lightbulb' | 'moon';
+  controlId: string;
+  groupId: string;
+  groupName: string;
 }
 
 type Mode = 'off' | 'auto' | 'on';
@@ -25,6 +30,8 @@ const float = keyframes`
   }
 `;
 
+const floatAnimation = css`${float}`;
+
 const animate = keyframes`
   from {
     transform: rotate(0deg);
@@ -33,6 +40,8 @@ const animate = keyframes`
     transform: rotate(360deg);
   }
 `;
+
+const animateRotation = css`${animate}`;
 
 const glow = keyframes`
   0% {
@@ -49,6 +58,8 @@ const glow = keyframes`
   }
 `;
 
+const glowAnimation = css`${glow}`;
+
 const shimmer = keyframes`
   0% {
     background-position: -200% 0;
@@ -58,32 +69,44 @@ const shimmer = keyframes`
   }
 `;
 
-const ControlCard: React.FC<ControlCardProps> = ({ title, icon }) => {
-  const [mode, setMode] = useState<Mode>('off');
-  const [isActive, setIsActive] = useState(false);
+const shimmerAnimation = css`${shimmer}`;
+
+const ripple = keyframes`
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+`;
+
+const rippleAnimation = css`${ripple}`;
+
+const ControlCard: React.FC<ControlCardProps> = ({ title, icon, controlId, groupId, groupName }) => {
   const [showSettings, setShowSettings] = useState(false);
-
-  useEffect(() => {
-    if (mode === 'on') {
-      setIsActive(true);
-    } else if (mode === 'off') {
-      setIsActive(false);
-    }
-
-    let interval: NodeJS.Timeout;
-    if (mode === 'auto') {
-      interval = setInterval(() => {
-        setIsActive(prev => !prev);
-      }, 2000);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [mode]);
+  const { isOperator } = useUserMode();
+  const { groups, updateControlMode } = useGroups();
   
+  // Find the control in the groups
+  const group = groups.find(g => g.id === groupId);
+  const control = group?.controls.find(c => c.id === controlId);
+  
+  // Get mode and active status from the control
+  const mode = control?.mode || 'off';
+  const isActive = control?.isActive || false;
+
   const toggleSettings = () => {
-    setShowSettings(prev => !prev);
+    if (isOperator()) {
+      setShowSettings(prev => !prev);
+    }
+  };
+
+  const handleModeChange = (newMode: Mode) => {
+    if (isOperator()) {
+      updateControlMode(groupId, controlId, newMode);
+    }
   };
 
   return (
@@ -93,7 +116,10 @@ const ControlCard: React.FC<ControlCardProps> = ({ title, icon }) => {
           <IconWrapper active={isActive}>
             <FontAwesomeIcon icon={icon === 'lightbulb' ? faLightbulb : faMoon} />
           </IconWrapper>
-          <h2>{title}</h2>
+          <div>
+            <h2>{title}</h2>
+            <GroupLabel>{groupName}</GroupLabel>
+          </div>
         </TitleSection>
         <StatusIndicator>
           <StatusDot active={isActive} />
@@ -122,13 +148,14 @@ const ControlCard: React.FC<ControlCardProps> = ({ title, icon }) => {
         </SettingsPanel>
       )}
 
-      <ControlButtons>
+      <ControlButtonsGrid>
         <Button
           isActive={mode === 'on'}
-          onClick={() => setMode('on')}
+          onClick={() => handleModeChange('on')}
           variant="on"
+          color="#2ecc71"
         >
-          <WaterEffect isActive={mode === 'on'} variant="on" />
+          <WaterEffect isActive={mode === 'on'} variant="on" color="#2ecc71" />
           <ButtonContent>
             <FontAwesomeIcon icon={faSun} />
             <ButtonText>On</ButtonText>
@@ -137,11 +164,12 @@ const ControlCard: React.FC<ControlCardProps> = ({ title, icon }) => {
 
         <Button
           isActive={mode === 'auto'}
-          onClick={() => setMode('auto')}
+          onClick={() => handleModeChange('auto')}
           variant="auto"
           active={mode === 'auto' && isActive}
+          color="#3498db"
         >
-          <WaterEffect isActive={mode === 'auto'} variant="auto" active={isActive} />
+          <WaterEffect isActive={mode === 'auto'} variant="auto" active={isActive} color="#3498db" />
           <ButtonContent>
             <FontAwesomeIcon icon={faClock} />
             <ButtonText>Auto</ButtonText>
@@ -150,16 +178,17 @@ const ControlCard: React.FC<ControlCardProps> = ({ title, icon }) => {
 
         <Button
           isActive={mode === 'off'}
-          onClick={() => setMode('off')}
+          onClick={() => handleModeChange('off')}
           variant="off"
+          color="#e74c3c"
         >
-          <WaterEffect isActive={mode === 'off'} variant="off" />
+          <WaterEffect isActive={mode === 'off'} variant="off" color="#e74c3c" />
           <ButtonContent>
             <FontAwesomeIcon icon={faPowerOff} />
             <ButtonText>Off</ButtonText>
           </ButtonContent>
         </Button>
-      </ControlButtons>
+      </ControlButtonsGrid>
     </CardContainer>
   );
 };
@@ -173,7 +202,7 @@ const CardContainer = styled.div<{ active: boolean }>`
     '0 8px 32px 0 rgba(31, 38, 135, 0.3), 0 0 15px rgba(0, 195, 255, 0.3)' : 
     '0 8px 32px 0 rgba(31, 38, 135, 0.2)'};
   border: 1px solid ${props => props.active ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
-  animation: ${float} 6s ease-in-out infinite;
+  animation: ${props => css`${float} 6s ease-in-out infinite;`};
   width: 100%;
   max-width: 100%;
   margin: 0;
@@ -213,7 +242,7 @@ const CardHeader = styled.div`
 
 const TitleSection = styled.div`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 15px;
 
   h2 {
@@ -223,6 +252,11 @@ const TitleSection = styled.div`
     margin: 0;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     transition: all 0.3s ease;
+  }
+
+  div {
+    display: flex;
+    flex-direction: column;
   }
 
   @media (max-width: 768px) {
@@ -412,24 +446,18 @@ const ColorOption = styled.button<{ color: string; selected?: boolean }>`
   }
 `;
 
-const ControlButtons = styled.div`
+const ControlButtonsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 35px;
-  width: 100%;
-  padding: 20px 30px;
-  margin: 0 auto;
-  max-width: 1000px;
+  gap: 15px;
 
   @media (max-width: 768px) {
-    gap: 20px;
-    padding: 15px;
+    gap: 10px;
   }
 
   @media (max-width: 480px) {
     grid-template-columns: 1fr;
-    gap: 15px;
-    padding: 10px;
+    gap: 12px;
   }
 `;
 
@@ -437,9 +465,10 @@ interface ButtonProps {
   isActive: boolean;
   variant: 'off' | 'auto' | 'on';
   active?: boolean;
+  color: string;
 }
 
-const WaterEffect = styled.div<{ isActive: boolean; variant?: 'off' | 'auto' | 'on'; active?: boolean }>`
+const WaterEffect = styled.div<{ isActive: boolean; variant?: 'off' | 'auto' | 'on'; active?: boolean; color: string }>`
   width: 100%;
   height: 70px;
   position: absolute;
@@ -452,21 +481,20 @@ const WaterEffect = styled.div<{ isActive: boolean; variant?: 'off' | 'auto' | '
     if (props.variant === 'auto') {
       return props.active ? '#2ecc71' : '#e74c3c';
     }
-    switch (props.variant) {
-      case 'off': return '#e74c3c';
-      case 'on': return '#2ecc71';
-      default: return '#2893eb';
-    }
+    if (props.variant === 'off') return '#e74c3c';
+    if (props.variant === 'on') return '#2ecc71';
+    return '#2893eb';
   }};
   
   box-shadow: ${props => {
-    const color = props.variant === 'auto' 
-      ? (props.active ? '#27ae60' : '#c0392b')
-      : props.variant === 'off' 
-        ? '#c0392b' 
-        : props.variant === 'on' 
-          ? '#27ae60' 
-          : '#104e81';
+    let color = '#104e81';
+    if (props.variant === 'auto') {
+      color = props.active ? '#27ae60' : '#c0392b';
+    } else if (props.variant === 'off') {
+      color = '#c0392b';
+    } else if (props.variant === 'on') {
+      color = '#27ae60';
+    }
     return `inset 5px -5px 25px ${color}, inset -5px 0px 25px ${color}`;
   }};
 
@@ -491,11 +519,9 @@ const WaterEffect = styled.div<{ isActive: boolean; variant?: 'off' | 'auto' | '
       if (props.variant === 'auto') {
         return props.active ? 'rgba(46, 204, 113, 0.8)' : 'rgba(231, 76, 60, 0.8)';
       }
-      switch (props.variant) {
-        case 'off': return 'rgba(231, 76, 60, 0.8)';
-        case 'on': return 'rgba(46, 204, 113, 0.8)';
-        default: return 'rgba(68, 160, 235, 0.8)';
-      }
+      if (props.variant === 'off') return 'rgba(231, 76, 60, 0.8)';
+      if (props.variant === 'on') return 'rgba(46, 204, 113, 0.8)';
+      return 'rgba(68, 160, 235, 0.8)';
     }};
     z-index: 1;
     position: absolute;
@@ -507,71 +533,127 @@ const WaterEffect = styled.div<{ isActive: boolean; variant?: 'off' | 'auto' | '
 `;
 
 const Button = styled.button<ButtonProps>`
-  position: relative;
-  background-color: #000;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  outline: none;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid ${props => props.isActive ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
+  border-radius: 15px;
+  padding: 15px 10px;
   color: white;
-  width: 100%;
-  min-width: 180px;
-  padding: 25px;
-  border-radius: 50px;
-  cursor: pointer;
+  position: relative;
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  transform-origin: center;
-  height: 110px;
-  margin: 0 auto;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(5px);
-
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: ${props => props.isActive ? `0 0 15px ${props.color}80` : 'none'};
+  transform: ${props => props.isActive ? 'translateY(-2px)' : 'none'};
+  height: 100%;
+  min-height: 80px;
+  
   &:hover {
-    transform: scale(1.05);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-  }
-
-  &:active {
-    transform: scale(0.95);
+    background: rgba(0, 0, 0, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
   }
   
-  ${props => props.isActive && css`
-    box-shadow: ${props.variant === 'on' ? '0 0 15px rgba(46, 204, 113, 0.5)' : 
-                props.variant === 'auto' ? '0 0 15px rgba(52, 152, 219, 0.5)' : 
-                '0 0 15px rgba(231, 76, 60, 0.5)'};
-  `}
+  &:active {
+    transform: translateY(1px);
+  }
+
+  &::after {
+    content: '';
+    display: block;
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    top: 50%;
+    left: 50%;
+    background-color: rgba(255, 255, 255, 0.5);
+    opacity: 0;
+    border-radius: 100%;
+    transform: translate(-50%, -50%);
+  }
+  
+  &:active::after {
+    animation: ${ripple} 0.6s ease-out;
+  }
+
+  @media (max-width: 768px) {
+    padding: 12px 8px;
+    border-radius: 12px;
+    min-height: 70px;
+  }
+  
+  @media (max-width: 480px) {
+    min-height: 60px;
+  }
 `;
 
 const ButtonContent = styled.div`
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  font-size: 1.4em;
-  position: relative;
-  z-index: 2;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-  transition: all 0.3s ease;
+  gap: 10px;
   
-  svg {
-    transition: transform 0.3s ease;
+  @media (max-width: 768px) {
+    gap: 8px;
   }
   
-  ${Button}:hover & svg {
-    transform: scale(1.1) rotate(5deg);
+  @media (max-width: 480px) {
+    flex-direction: row;
+    justify-content: center;
+    gap: 12px;
   }
 `;
 
 const ButtonText = styled.span`
-  font-size: 1.1em;
-  font-weight: 600;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-  letter-spacing: 2px;
-  font-family: sans-serif;
-  transition: all 0.3s ease;
+  font-size: 0.9em;
+  font-weight: 500;
+  letter-spacing: 1px;
   
-  ${Button}:hover & {
-    letter-spacing: 3px;
+  @media (max-width: 768px) {
+    font-size: 0.85em;
   }
+`;
+
+const GroupLabel = styled.span`
+  font-size: 0.7rem;
+  font-weight: normal;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(52, 152, 219, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 4px;
+  display: inline-block;
+`;
+
+// Update the ControlButton styled component
+const ControlButton = styled.button<{ active: boolean; disabled: boolean }>`
+  background: ${props => props.active ? 'rgba(0, 195, 255, 0.2)' : 'none'};
+  border: none;
+  color: ${props => props.active ? '#00c3ff' : '#ffffff80'};
+  font-size: 1.2em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 8px;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    animation: ${glow} 2s ease-in-out infinite;
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+  opacity: ${props => props.disabled ? 0.5 : 1};
+  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
+  pointer-events: ${props => props.disabled ? 'none' : 'auto'};
 `;
 
 export default ControlCard;

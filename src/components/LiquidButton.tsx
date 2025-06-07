@@ -1,5 +1,5 @@
 import React, { ReactNode, useState } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 
 interface LiquidButtonProps {
   text?: ReactNode;
@@ -52,48 +52,85 @@ const LiquidButton: React.FC<LiquidButtonProps> = ({
 
 const ripple = keyframes`
   0% {
-    transform: scale(0.8);
-    opacity: 1;
+    transform: scale(0.1);
+    opacity: 0.7;
   }
   100% {
-    transform: scale(2.4);
+    transform: scale(1.2);
     opacity: 0;
   }
 `;
 
+const rippleAnimation = css`${ripple}`;
+
 const waveAnimation = keyframes`
-  from {
-    transform: rotate(0deg);
+  0% {
+    transform: translateX(0%);
   }
-  to {
-    transform: rotate(360deg);
+  100% {
+    transform: translateX(100%);
   }
 `;
 
+const waveAnimationStyled = css`${waveAnimation}`;
+
 const pulse = keyframes`
   0% {
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+    transform: scale(1);
   }
-  70% {
-    box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
+  50% {
+    transform: scale(1.05);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    transform: scale(1);
   }
 `;
+
+const pulseAnimation = css`${pulse}`;
+
+const shimmer = keyframes`
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+`;
+
+const shimmerAnimation = css`${shimmer}`;
+
+const float = keyframes`
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+`;
+
+const floatAnimation = css`${float}`;
 
 const StyledWrapper = styled.div<{
   color: string;
   hoverColor: string;
   size: string;
   disabled: boolean;
+  fullWidth?: boolean;
 }>`
+  display: ${props => props.fullWidth ? 'block' : 'inline-block'};
+  width: ${props => props.fullWidth ? '100%' : 'auto'};
+  margin: 10px 0;
+  
   .button {
-    background-color: #000;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     outline: 0px;
     color: #fff;
     width: ${props => {
+      if (props.fullWidth) return '100%';
       switch (props.size) {
         case 'small': return '120px';
         case 'large': return '240px';
@@ -102,9 +139,9 @@ const StyledWrapper = styled.div<{
     }};
     padding: ${props => {
       switch (props.size) {
-        case 'small': return '12px';
-        case 'large': return '24px';
-        default: return '18px';
+        case 'small': return '12px 16px';
+        case 'large': return '20px 32px';
+        default: return '16px 24px';
       }
     }};
     border-radius: 50px;
@@ -115,10 +152,11 @@ const StyledWrapper = styled.div<{
     opacity: ${props => props.disabled ? 0.6 : 1};
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     backdrop-filter: blur(5px);
+    text-align: center;
 
     &:hover {
       transform: ${props => props.disabled ? 'none' : 'translateY(-3px) scale(1.02)'};
-      box-shadow: ${props => props.disabled ? 'none' : '0 8px 25px rgba(0, 0, 0, 0.3)'};
+      box-shadow: ${props => props.disabled ? 'none' : '0 8px 25px rgba(0, 0, 0, 0.3), 0 0 15px rgba(${props.color}, 0.3)'};
     }
     
     &:active {
@@ -136,19 +174,18 @@ const StyledWrapper = styled.div<{
       background-color: rgba(255, 255, 255, 0.5);
       opacity: 0;
       border-radius: 100%;
-      transform: scale(1);
       transform: translate(-50%, -50%);
     }
     
     &:active::after {
-      animation: ${ripple} 0.6s ease-out;
+      animation: ${props => css`${ripple} 0.6s ease-out;`};
     }
   }
 
   .liquid {
     background-color: ${props => props.color};
     width: 100%;
-    height: 70px;
+    height: 60%;
     position: absolute;
     bottom: 0;
     left: 0;
@@ -158,12 +195,12 @@ const StyledWrapper = styled.div<{
     
     &.hovered {
       background-color: ${props => props.hoverColor};
-      height: 75px;
-      animation: ${pulse} 2s infinite;
+      height: 65%;
+      animation: ${props => css`${pulse} 2s infinite;`};
     }
     
     &.pressed {
-      height: 85px;
+      height: 75%;
     }
   }
 
@@ -171,13 +208,13 @@ const StyledWrapper = styled.div<{
     content: '';
     width: 450px;
     height: 400px;
-    background: #000;
+    background: rgba(0, 0, 0, 0.7);
     z-index: 1;
     position: absolute;
     left: -110px;
     top: -380px;
     border-radius: 45%;
-    animation: ${waveAnimation} 5s linear 2s infinite;
+    animation: ${props => css`${waveAnimation} 5s linear 2s infinite;`};
   }
 
   .liquid::before {
@@ -190,7 +227,7 @@ const StyledWrapper = styled.div<{
     left: -110px;
     top: -380px;
     border-radius: 40%;
-    animation: ${waveAnimation} 5s linear 1.8s infinite;
+    animation: ${props => css`${waveAnimation} 5s linear 1.8s infinite;`};
   }
 
   .btn-txt {
@@ -198,16 +235,78 @@ const StyledWrapper = styled.div<{
     z-index: 1;
     font-size: ${props => {
       switch (props.size) {
-        case 'small': return '16px';
-        case 'large': return '24px';
-        default: return '20px';
+        case 'small': return '0.9em';
+        case 'large': return '1.2em';
+        default: return '1em';
       }
     }};
     font-weight: 500;
-    font-family: sans-serif;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
+    background: ${props => !props.disabled ? 'linear-gradient(90deg, #ffffff, #f0f0f0, #ffffff)' : 'none'};
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: ${props => !props.disabled ? 'transparent' : 'white'};
+    animation: ${props => !props.disabled ? css`${shimmer} 3s linear infinite` : 'none'};
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   }
+  
+  @media (max-width: 768px) {
+    .button {
+      padding: ${props => {
+        switch (props.size) {
+          case 'small': return '10px 14px';
+          case 'large': return '16px 28px';
+          default: return '14px 20px';
+        }
+      }};
+    }
+    
+    .btn-txt {
+      font-size: ${props => {
+        switch (props.size) {
+          case 'small': return '0.8em';
+          case 'large': return '1.1em';
+          default: return '0.9em';
+        }
+      }};
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .button {
+      padding: ${props => {
+        switch (props.size) {
+          case 'small': return '8px 12px';
+          case 'large': return '14px 24px';
+          default: return '12px 18px';
+        }
+      }};
+      width: ${props => {
+        if (props.fullWidth) return '100%';
+        switch (props.size) {
+          case 'small': return '100px';
+          case 'large': return '200px';
+          default: return '150px';
+        }
+      }};
+    }
+  }
+`;
+
+const ButtonContent = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  position: relative;
+  z-index: 2;
+`;
+
+const IconWrapper = styled.span`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: ${float} 3s ease-in-out infinite;
 `;
 
 export default LiquidButton;

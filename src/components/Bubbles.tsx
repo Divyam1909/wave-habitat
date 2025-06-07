@@ -1,5 +1,5 @@
 import React from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 
 const Bubbles: React.FC = () => {
   return (
@@ -28,11 +28,13 @@ const rise = keyframes`
   }
 `;
 
+const riseAnimation = css`${rise}`;
+
 const BubblesContainer = styled.div`
   position: fixed;
   width: 100%;
   height: 100%;
-  z-index: 1;
+  z-index: 2;
   overflow: hidden;
   top: 0;
   left: 0;
@@ -52,4 +54,4 @@ const Bubble = styled.div<{ index: number }>`
   height: ${props => 10 + (props.index % 20)}px;
 `;
 
-export default Bubbles; 
+export default Bubbles;
