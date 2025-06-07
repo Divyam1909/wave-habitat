@@ -1,26 +1,56 @@
 import React from 'react';
 import styled, { keyframes, css } from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faUserCog } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faUserCog, faCode } from '@fortawesome/free-solid-svg-icons';
 import { useUserMode } from '../contexts/UserModeContext';
 
 const EnhancedModeToggleButton: React.FC = () => {
   const { mode, setMode } = useUserMode();
 
   const toggleMode = () => {
-    setMode(mode === 'operator' ? 'viewer' : 'operator');
+    // Cycle through the three modes: viewer -> operator -> programmer -> viewer
+    if (mode === 'viewer') {
+      setMode('operator');
+    } else if (mode === 'operator') {
+      setMode('programmer');
+    } else {
+      setMode('viewer');
+    }
+  };
+
+  // Get the appropriate icon and next mode for the button
+  const getIconForMode = () => {
+    switch (mode) {
+      case 'viewer': return faUser;
+      case 'operator': return faUserCog;
+      case 'programmer': return faCode;
+      default: return faUser;
+    }
+  };
+
+  // Get the appropriate text for the current mode
+  const getTextForMode = () => {
+    switch (mode) {
+      case 'viewer': return 'Viewer';
+      case 'operator': return 'Operator';
+      case 'programmer': return 'Programmer';
+      default: return 'Viewer';
+    }
   };
 
   return (
-    <ToggleButton onClick={toggleMode} aria-label={`Switch to ${mode === 'operator' ? 'viewer' : 'operator'} mode`}>
+    <ToggleButton 
+      onClick={toggleMode} 
+      aria-label={`Current mode: ${getTextForMode()}`}
+    >
       <ButtonContent>
-        <IconWrapper isOperator={mode === 'operator'}>
-          <FontAwesomeIcon icon={mode === 'operator' ? faUserCog : faUser} />
+        <IconWrapper isProgrammer={mode === 'programmer'} isOperator={mode === 'operator'}>
+          <FontAwesomeIcon icon={getIconForMode()} />
         </IconWrapper>
-        <ModeText>{mode === 'operator' ? 'Operator' : 'Viewer'}</ModeText>
+        <ModeText>{getTextForMode()}</ModeText>
       </ButtonContent>
       
-      <ButtonBackground isOperator={mode === 'operator'} />
+      <ButtonBackground isProgrammer={mode === 'programmer'} isOperator={mode === 'operator'} />
     </ToggleButton>
   );
 };
@@ -71,24 +101,42 @@ const ToggleButton = styled.button`
   }
 `;
 
-const ButtonBackground = styled.div<{ isOperator: boolean }>`
+const ButtonBackground = styled.div<{ isOperator: boolean; isProgrammer: boolean }>`
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: ${props => props.isOperator ? 
-    'linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(79, 195, 247, 0.2))' : 
-    'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))'
-  };
-  border: 1px solid ${props => props.isOperator ? 
-    'rgba(14, 165, 233, 0.5)' : 
-    'rgba(255, 255, 255, 0.1)'
-  };
+  background: ${props => {
+    if (props.isProgrammer) {
+      return 'linear-gradient(135deg, rgba(156, 39, 176, 0.2), rgba(233, 30, 99, 0.2))';
+    } else if (props.isOperator) {
+      return 'linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(79, 195, 247, 0.2))';
+    } else {
+      return 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))';
+    }
+  }};
+  border: 1px solid ${props => {
+    if (props.isProgrammer) {
+      return 'rgba(156, 39, 176, 0.5)';
+    } else if (props.isOperator) {
+      return 'rgba(14, 165, 233, 0.5)';
+    } else {
+      return 'rgba(255, 255, 255, 0.1)';
+    }
+  }};
   border-radius: 20px;
   z-index: 0;
   transition: all 0.3s ease;
-  animation: ${props => props.isOperator ? css`${pulse} 2s infinite` : 'none'};
+  animation: ${props => {
+    if (props.isProgrammer) {
+      return css`${pulse} 2s infinite`;
+    } else if (props.isOperator) {
+      return css`${pulse} 2s infinite`;
+    } else {
+      return 'none';
+    }
+  }};
   
   @media (max-width: 768px) {
     border-radius: 50%;
@@ -109,14 +157,30 @@ const ButtonContent = styled.div`
   }
 `;
 
-const IconWrapper = styled.div<{ isOperator: boolean }>`
+const IconWrapper = styled.div<{ isOperator: boolean; isProgrammer: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: ${props => props.isOperator ? '#4fc3f7' : 'rgba(255, 255, 255, 0.8)'};
+  color: ${props => {
+    if (props.isProgrammer) {
+      return '#e91e63';
+    } else if (props.isOperator) {
+      return '#4fc3f7';
+    } else {
+      return 'rgba(255, 255, 255, 0.8)';
+    }
+  }};
   font-size: 1rem;
   transition: all 0.3s ease;
-  animation: ${props => props.isOperator ? css`${rotate} 1s ease-in-out` : css`${fadeIn} 0.3s ease-out`};
+  animation: ${props => {
+    if (props.isProgrammer) {
+      return css`${rotate} 1s ease-in-out`;
+    } else if (props.isOperator) {
+      return css`${rotate} 1s ease-in-out`;
+    } else {
+      return css`${fadeIn} 0.3s ease-out`;
+    }
+  }};
   
   @media (max-width: 768px) {
     font-size: 1.1rem;

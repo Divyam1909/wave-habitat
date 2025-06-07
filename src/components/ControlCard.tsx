@@ -95,8 +95,14 @@ const rippleAnimation = css`${ripple}`;
 
 const ControlCard: React.FC<ControlCardProps> = ({ title, icon, controlId, groupId, groupName }) => {
   const [showSettings, setShowSettings] = useState(false);
-  const { isOperator } = useUserMode();
-  const { groups, updateControlMode } = useGroups();
+  const { isOperator, isProgrammer } = useUserMode();
+  const { groups, updateControlMode, updateAutoSettings } = useGroups();
+  
+  // State for auto settings form
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [duration, setDuration] = useState(0);
+  const [interval, setInterval] = useState(0);
   
   // Find the control in the groups
   const group = groups.find(g => g.id === groupId);
@@ -107,27 +113,77 @@ const ControlCard: React.FC<ControlCardProps> = ({ title, icon, controlId, group
   const isActive = control?.isActive || false;
 
   const toggleSettings = () => {
-    if (isOperator()) {
+    if (isOperator() || isProgrammer()) {
+      // If opening settings panel, initialize form values from existing settings
+      if (!showSettings) {
+        const control = group?.controls.find(c => c.id === controlId);
+        if (control?.autoSettings) {
+          setStartTime(control.autoSettings.startTime || '');
+          setEndTime(control.autoSettings.endTime || '');
+          setDuration(control.autoSettings.duration || 0);
+          setInterval(control.autoSettings.interval || 0);
+        }
+      }
       setShowSettings(prev => !prev);
     }
   };
 
   const handleModeChange = (newMode: Mode) => {
-    if (isOperator()) {
+    if (isOperator() || isProgrammer()) {
       updateControlMode(groupId, controlId, newMode);
     }
   };
-
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-    if (mode === 'auto') {
-      intervalId = setInterval(() => {
-        // Toggle between 'on' and 'off' for auto mode
-        updateControlMode(groupId, controlId, isActive ? 'off' : 'on');
-      }, 2000);
+  
+  const handleSaveAutoSettings = () => {
+    if (isProgrammer()) {
+      updateAutoSettings(groupId, controlId, {
+        startTime,
+        endTime,
+        duration,
+        interval,
+        enabled: true
+      });
     }
-    return () => clearInterval(intervalId);
-  }, [mode, isActive, groupId, controlId, updateControlMode]);
+  };
+
+  // Extract autoSettings outside of useEffect to avoid unnecessary dependency on the entire group object
+  const autoSettings = control?.autoSettings;
+  
+  useEffect(() => {
+    let intervalId: number | undefined;
+    if (mode === 'auto') {
+      // Use configured interval if available, otherwise default to 2000ms
+      const autoInterval = autoSettings?.interval ? autoSettings.interval * 1000 : 2000;
+      
+      // In browser environment, setInterval returns a number
+      intervalId = window.setInterval(() => {
+        // Determine 'on' or 'off' based on autoSettings startTime and endTime
+        const now = new Date();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+        const [startHour, startMinute] = (autoSettings?.startTime || '00:00').split(':').map(Number);
+        const [endHour, endMinute] = (autoSettings?.endTime || '00:00').split(':').map(Number);
+
+        const startTotalMinutes = startHour * 60 + startMinute;
+        const endTotalMinutes = endHour * 60 + endMinute;
+
+        let newMode: Mode = 'off';
+        if (startTotalMinutes < endTotalMinutes) {
+          if (currentMinutes >= startTotalMinutes && currentMinutes < endTotalMinutes) {
+            newMode = 'on';
+          }
+        } else { // Overnight case
+          if (currentMinutes >= startTotalMinutes || currentMinutes < endTotalMinutes) {
+            newMode = 'on';
+          }
+        }
+        updateControlMode(groupId, controlId, newMode);
+      }, autoInterval);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [mode, isActive, groupId, controlId, updateControlMode, autoSettings]);
 
   return (
     <CardContainer active={isActive}>
@@ -145,26 +201,71 @@ const ControlCard: React.FC<ControlCardProps> = ({ title, icon, controlId, group
           <StatusDot active={isActive} />
           <StatusText active={isActive}>{isActive ? 'Active' : 'Inactive'}</StatusText>
         </StatusIndicator>
-        <SettingsButton onClick={toggleSettings} active={showSettings}>
-          <FontAwesomeIcon icon={showSettings ? faSliders : faCog} />
-        </SettingsButton>
+        {isProgrammer() && (
+          <SettingsButton onClick={toggleSettings} active={showSettings}>
+            <FontAwesomeIcon icon={showSettings ? faSliders : faCog} />
+          </SettingsButton>
+        )}
       </CardHeader>
       
       {showSettings && (
         <SettingsPanel>
+          {/* Auto Settings Configuration */}
+          <SettingHeader>Auto Mode Configuration</SettingHeader>
+          
           <SettingRow>
-            <SettingLabel>Brightness</SettingLabel>
-            <RangeSlider type="range" min="0" max="100" defaultValue="80" />
+            <SettingLabel>
+              <FontAwesomeIcon icon={faClock} />
+              Start Time
+            </SettingLabel>
+            <TimeInput 
+              type="time" 
+              value={startTime} 
+              onChange={(e) => setStartTime(e.target.value)} 
+            />
           </SettingRow>
+          
           <SettingRow>
-            <SettingLabel>Color</SettingLabel>
-            <ColorOptions>
-              <ColorOption color="#2ecc71" selected={true} />
-              <ColorOption color="#3498db" />
-              <ColorOption color="#9b59b6" />
-              <ColorOption color="#f1c40f" />
-            </ColorOptions>
+            <SettingLabel>
+              <FontAwesomeIcon icon={faClock} />
+              End Time
+            </SettingLabel>
+            <TimeInput 
+              type="time" 
+              value={endTime} 
+              onChange={(e) => setEndTime(e.target.value)} 
+            />
           </SettingRow>
+          
+          <SettingRow>
+            <SettingLabel>
+              <FontAwesomeIcon icon={faClock} />
+              Duration (seconds)
+            </SettingLabel>
+            <NumberInput 
+              type="number" 
+              min="0" 
+              value={duration} 
+              onChange={(e) => setDuration(parseInt(e.target.value) || 0)} 
+            />
+          </SettingRow>
+          
+          <SettingRow>
+            <SettingLabel>
+              <FontAwesomeIcon icon={faClock} />
+              Interval (seconds)
+            </SettingLabel>
+            <NumberInput 
+              type="number" 
+              min="0" 
+              value={interval} 
+              onChange={(e) => setInterval(parseInt(e.target.value) || 0)} 
+            />
+          </SettingRow>
+          
+          <SaveButton onClick={handleSaveAutoSettings}>
+            Save Auto Settings
+          </SaveButton>
         </SettingsPanel>
       )}
 
@@ -192,7 +293,20 @@ const ControlCard: React.FC<ControlCardProps> = ({ title, icon, controlId, group
           <WaterEffect isActive={mode === 'auto'} variant="auto" active={isActive} color="#3498db" />
           <ButtonContent>
             <FontAwesomeIcon icon={faClock} />
-            <ButtonText>Auto</ButtonText>
+            <ButtonText>
+              {mode === 'auto' && control?.autoSettings?.enabled ? (
+                <>
+                  Auto
+                  {control.autoSettings.startTime && control.autoSettings.endTime && (
+                    <AutoTimeRange>
+                      {control.autoSettings.startTime} - {control.autoSettings.endTime}
+                    </AutoTimeRange>
+                  )}
+                </>
+              ) : (
+                'Auto'
+              )}
+            </ButtonText>
           </ButtonContent>
         </Button>
 
@@ -233,6 +347,8 @@ const CardContainer = styled.div<{ active: boolean }>`
   grid-template-rows: auto auto 1fr;
   gap: 15px;
   min-height: 350px;
+  position: relative; /* ADDED: Ensure absolutely positioned children are relative to this container */
+  overflow: visible;  /* Ensure dropdown isn't clipped */
 
   @media (max-width: 768px) {
     padding: 20px;
@@ -252,6 +368,8 @@ const CardHeader = styled.div`
   align-items: center;
   padding: 0 10px 15px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  z-index: 2; /* Ensure header is above other card content but below settings panel */
 
   @media (max-width: 768px) {
     padding: 0 5px 12px 5px;
@@ -354,9 +472,12 @@ const StatusText = styled.span<{ active: boolean }>`
 `;
 
 const SettingsButton = styled.button<{ active: boolean }>`
-  background: ${props => props.active ? 'rgba(0, 195, 255, 0.2)' : 'none'};
-  border: none;
-  color: ${props => props.active ? '#00c3ff' : '#ffffff80'};
+  position: absolute;
+  top: 0px; /* Adjusted to be within the header */
+  right: 0px; /* Adjusted to be within the header */
+  background: ${props => props.active ? 'rgba(0, 195, 255, 0.8)' : 'rgba(0, 0, 0, 0.6)'};
+  border: 2px solid ${props => props.active ? 'rgba(0, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.2)'};
+  color: ${props => props.active ? '#ffffff' : '#ffffff80'};
   font-size: 1.2em;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -367,49 +488,71 @@ const SettingsButton = styled.button<{ active: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+  transform: ${props => props.active ? 'rotate(180deg)' : 'rotate(0deg)'};
 
   &:hover {
     color: #fff;
-    background: rgba(255, 255, 255, 0.1);
-    animation: ${glow} 2s ease-in-out infinite;
+    background: ${props => props.active ? 'rgba(0, 195, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)'};
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), 0 0 10px rgba(0, 195, 255, 0.3);
+    transform: ${props => props.active ? 'rotate(180deg) scale(1.05)' : 'rotate(0deg) scale(1.05)'};
   }
   
   &:active {
-    transform: scale(0.95);
+    transform: ${props => props.active ? 'rotate(180deg) scale(0.95)' : 'rotate(0deg) scale(0.95)'};
   }
 `;
 
 const SettingsPanel = styled.div`
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 12px;
-  padding: 15px;
-  margin-top: 10px;
-  margin-bottom: 15px;
+  background: rgba(0, 10, 20, 0.95);
+  border-radius: 16px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  animation: fadeIn 0.3s ease-out forwards;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  width: 100%;
+  gap: 15px;
+  animation: fadeIn 0.4s cubic-bezier(0.26, 0.53, 0.74, 1.48) forwards;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 195, 255, 0.3);
+  border: 1px solid rgba(0, 195, 255, 0.3);
+  width: calc(100% - 20px); /* Adjusted to fit within the card with padding */
+  max-height: 300px; /* Set a max height to enable scrolling */
+  overflow-y: auto; /* Enable vertical scrolling */
+  position: absolute;
+  top: 60px; /* Adjusted to drop down from the button */
+  right: 10px; /* Adjusted for better positioning */
+  z-index: 100;
+  backdrop-filter: blur(15px);
   
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
+    from { opacity: 0; transform: translateY(-15px); }
     to { opacity: 1; transform: translateY(0); }
   }
   
+  &:before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    right: 20px;
+    width: 16px;
+    height: 16px;
+    background: rgba(0, 10, 20, 0.95);
+    transform: rotate(45deg);
+    border-top: 1px solid rgba(0, 195, 255, 0.3);
+    border-left: 1px solid rgba(0, 195, 255, 0.3);
+    z-index: -1;
+  }
+  
   @media (max-width: 768px) {
-    padding: 12px;
-    gap: 10px;
-    margin-top: 8px;
-    margin-bottom: 12px;
+    padding: 15px;
+    gap: 12px;
+    width: 95%;
   }
   
   @media (max-width: 480px) {
-    padding: 10px;
-    gap: 8px;
-    margin-top: 6px;
-    margin-bottom: 10px;
+    padding: 12px;
+    gap: 10px;
+    width: 100%;
+    right: 0;
   }
 `;
 
@@ -418,10 +561,15 @@ const SettingRow = styled.div`
   justify-content: space-between;
   align-items: center;
   gap: 15px;
-  padding: 5px;
+  padding: 8px 10px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
   margin-bottom: 15px;
+  transition: background-color 0.2s ease;
+  
+  &:hover {
+    background-color: rgba(0, 195, 255, 0.1);
+  }
   
   &:last-child {
     margin-bottom: 0;
@@ -435,7 +583,7 @@ const SettingRow = styled.div`
   @media (max-width: 480px) {
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: 10px;
     padding: 3px;
   }
 `;
@@ -444,8 +592,15 @@ const SettingLabel = styled.div`
   font-size: 15px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 5px;
   letter-spacing: 0.5px;
+  
+  svg {
+    color: rgba(0, 195, 255, 0.8);
+  }
   
   @media (max-width: 768px) {
     font-size: 14px;
@@ -597,6 +752,130 @@ const ColorOption = styled.button<{ color: string; selected?: boolean }>`
   @media (max-width: 480px) {
     width: 22px;
     height: 22px;
+  }
+`;
+
+const SettingDivider = styled.div`
+  height: 1px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 15px 0;
+`;
+
+const SettingHeader = styled.h3`
+  font-size: 16px;
+  margin: 0 0 15px 0;
+  color: #00c3ff;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  text-align: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 195, 255, 0.3);
+  text-shadow: 0 0 10px rgba(0, 195, 255, 0.5);
+  
+  @media (max-width: 768px) {
+    font-size: 15px;
+    margin: 0 0 12px 0;
+    padding-bottom: 6px;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 14px;
+    margin: 0 0 10px 0;
+    padding-bottom: 5px;
+  }
+`;
+
+const TimeInput = styled.input`
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 195, 255, 0.3);
+  border-radius: 8px;
+  color: white;
+  padding: 10px 15px;
+  font-size: 14px;
+  width: 130px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  
+  &:hover {
+    border-color: rgba(0, 195, 255, 0.5);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 5px rgba(0, 195, 255, 0.2);
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: #00c3ff;
+    box-shadow: 0 0 0 2px rgba(0, 195, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.3);
+    background: rgba(0, 20, 40, 0.5);
+  }
+  
+  &::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.7;
+    cursor: pointer;
+  }
+  
+  &::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 8px 12px;
+    font-size: 13px;
+    width: 120px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 6px 10px;
+    font-size: 12px;
+    width: 100%;
+  }
+`;
+
+const NumberInput = styled.input`
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: white;
+  font-size: 0.9rem;
+  width: 80px;
+  outline: none;
+  transition: all 0.3s ease;
+  
+  &:focus {
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 10px rgba(0, 195, 255, 0.3);
+  }
+  
+  &::-webkit-inner-spin-button, 
+  &::-webkit-outer-spin-button { 
+    opacity: 1;
+  }
+`;
+
+const SaveButton = styled.button`
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 15px;
+  color: white;
+  font-weight: 500;
+  margin-top: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  
+  &:hover {
+    background: linear-gradient(135deg, #2980b9, #3498db);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  }
+  
+  &:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   }
 `;
 
@@ -803,6 +1082,9 @@ const ButtonText = styled.span`
   text-align: center;
   letter-spacing: 0.5px;
   margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   
   @media (max-width: 768px) {
     font-size: 13px;
@@ -813,6 +1095,13 @@ const ButtonText = styled.span`
     font-size: 12px;
     margin-top: 2px;
   }
+`;
+
+const AutoTimeRange = styled.small`
+  font-size: 0.7rem;
+  opacity: 0.8;
+  margin-top: 2px;
+  white-space: nowrap;
 `;
 
 const GroupLabel = styled.span`

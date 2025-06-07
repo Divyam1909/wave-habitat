@@ -53,11 +53,11 @@ const RadialSpeedometer: React.FC<RadialSpeedometerProps> = ({
   
   // Generate tick marks
   const ticks = [];
-  const numTicks = 10;
+  const numTicks = 20; // Increased number of ticks for more granularity
   
   for (let i = 0; i <= numTicks; i++) {
     const tickAngle = (i * 180) / numTicks - 90;
-    const isMajor = i % 2 === 0;
+    const isMajor = i % 4 === 0; // Only show labels for every 4th tick to avoid crowding
     const tickValue = min + (i / numTicks) * (max - min);
     
     ticks.push(

@@ -7,6 +7,14 @@ export interface ControlGroup {
   expanded?: boolean;
 }
 
+export interface AutoSettings {
+  startTime?: string; // Format: 'HH:MM'
+  endTime?: string; // Format: 'HH:MM'
+  duration?: number; // Duration in seconds
+  interval?: number; // Interval in seconds
+  enabled?: boolean;
+}
+
 export interface ControlItem {
   id: string;
   title: string;
@@ -15,6 +23,7 @@ export interface ControlItem {
   isActive?: boolean;
   name?: string;
   type?: string;
+  autoSettings?: AutoSettings;
 }
 
 interface GroupsContextType {
@@ -30,6 +39,7 @@ interface GroupsContextType {
   addControlToGroup: (groupId: string, controlName: string, controlType: string) => void;
   deleteControlFromGroup: (groupId: string, controlId: string) => void;
   updateControlMode: (groupId: string, controlId: string, mode: 'off' | 'auto' | 'on') => void;
+  updateAutoSettings: (groupId: string, controlId: string, settings: AutoSettings) => void;
   getVisibleControls: () => ControlItem[];
 }
 
@@ -141,11 +151,26 @@ export const GroupsProvider: React.FC<GroupsProviderProps> = ({ children }) => {
       group.id === groupId 
         ? { 
             ...group, 
-            controls: group.controls.map(control => 
-              control.id === controlId 
-                ? { ...control, mode, isActive: mode === 'on' || (mode === 'auto' && Math.random() > 0.5) } 
-                : control
-            ) 
+            controls: group.controls.map(control => {
+              if (control.id === controlId) {
+                // Default behavior if no auto settings are configured
+                let isActive = mode === 'on' || (mode === 'auto' && Math.random() > 0.5);
+                
+                // If in auto mode and auto settings are configured
+                if (mode === 'auto' && control.autoSettings && control.autoSettings.enabled) {
+                  // Check if current time is within the configured time range
+                  const now = new Date();
+                  const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+                  
+                  if (control.autoSettings.startTime && control.autoSettings.endTime) {
+                    isActive = currentTime >= control.autoSettings.startTime && currentTime <= control.autoSettings.endTime;
+                  }
+                }
+                
+                return { ...control, mode, isActive };
+              }
+              return control;
+            }) 
           } 
         : group
     ));
@@ -164,6 +189,30 @@ export const GroupsProvider: React.FC<GroupsProviderProps> = ({ children }) => {
     return [];
   };
 
+  const updateAutoSettings = (groupId: string, controlId: string, settings: AutoSettings) => {
+    setGroups(groups.map(group => 
+      group.id === groupId 
+        ? { 
+            ...group, 
+            controls: group.controls.map(control => {
+              if (control.id === controlId) {
+                const updatedSettings = {
+                  ...control.autoSettings,
+                  ...settings,
+                  startTime: settings.startTime || '00:00',
+                  endTime: settings.endTime || '23:59',
+                  duration: settings.duration || 0,
+                  interval: settings.interval || 0,
+                };
+                return { ...control, autoSettings: updatedSettings };
+              }
+              return control;
+            })
+          }
+        : group
+    ));
+  };
+
   const value = {
     groups,
     activeGroupId,
@@ -177,6 +226,7 @@ export const GroupsProvider: React.FC<GroupsProviderProps> = ({ children }) => {
     addControlToGroup,
     deleteControlFromGroup,
     updateControlMode,
+    updateAutoSettings,
     getVisibleControls
   };
 
