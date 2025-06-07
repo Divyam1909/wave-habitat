@@ -3,15 +3,15 @@ import styled, { keyframes, css } from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import { faWater, faTemperatureHalf, faLeaf, faLightbulb, faInfoCircle, faPause, faPlay } from '@fortawesome/free-solid-svg-icons';
-import RadialSpeedometer from './RadialSpeedometer';
+import ReactSpeedometer from 'react-d3-speedometer';
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Area,
+  AreaChart
 } from 'recharts';
 
 interface ChartData {
@@ -211,29 +211,31 @@ const EnhancedMetricCard: React.FC<EnhancedMetricCardProps> = ({
         
         <ChartsSection>
           <RadialChartContainer>
-            <RadialSpeedometer 
+            <ReactSpeedometer
               value={currentValue}
-              min={minValue}
-              max={maxValue}
-              unit={unit}
-              title={title}
-              color={color}
-              size="medium"
-              isLive={isLive}
-              isPaused={isPaused}
+              minValue={minValue}
+              maxValue={maxValue}
+              segments={5}
+              needleColor="steelblue"
+              startColor="#44ff44"
+              endColor="#ff4444"
+              textColor="#666"
+              currentValueText={`${currentValue.toFixed(1)} ${unit}`}
+              customSegmentStops={[minValue, minValue + (maxValue - minValue) * 0.25, minValue + (maxValue - minValue) * 0.75, maxValue]}
+              segmentColors={['#44ff44', '#ffaa00', '#ff4444']}
             />
           </RadialChartContainer>
           
           <LinearChartContainer>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
+              <AreaChart
                 data={chartData}
-                margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                margin={{ top: 5, right: 5, left: 0, bottom: 5 }} /* Adjusted margins for better fit */
               >
                 <defs>
                   <linearGradient id={`gradient-${title.replace(/\s+/g, '')}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={color} stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor={color} stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor={color} stopOpacity={0.1}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
@@ -241,22 +243,24 @@ const EnhancedMetricCard: React.FC<EnhancedMetricCardProps> = ({
                   dataKey="time" 
                   tick={{ fill: '#fff', fontSize: 10 }}
                   axisLine={{ stroke: 'rgba(255,255,255,0.3)' }}
+                  tickLine={{ stroke: 'rgba(255,255,255,0.3)' }}
                 />
                 <YAxis 
                   domain={[minValue, maxValue]}
                   tick={{ fill: '#fff', fontSize: 10 }}
                   axisLine={{ stroke: 'rgba(255,255,255,0.3)' }}
+                  tickLine={{ stroke: 'rgba(255,255,255,0.3)' }}
                 />
                 <Tooltip content={<CustomTooltip />} />
-                <Line 
+                <Area 
                   type="monotone" 
                   dataKey="value" 
                   stroke={color} 
                   strokeWidth={2}
-                  dot={false}
+                  fill={`url(#gradient-${title.replace(/\s+/g, '')})`}
                   activeDot={{ r: 6, fill: color, strokeWidth: 2, stroke: '#fff' }}
                 />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           </LinearChartContainer>
         </ChartsSection>
@@ -269,8 +273,9 @@ const EnhancedMetricCard: React.FC<EnhancedMetricCardProps> = ({
 const ChartsSection = styled.div`
   display: grid;
   grid-template-columns: 1fr 2fr;
-  gap: 20px;
+  gap: 15px; /* Adjusted gap for better alignment */
   height: 300px;
+  margin-top: 10px;
   
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
@@ -284,12 +289,43 @@ const RadialChartContainer = styled.div`
   align-items: center;
   justify-content: center;
   height: 100%;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 15px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  }
+  
+  @media (max-width: 768px) {
+    min-height: 200px;
+  }
 `;
 
 const LinearChartContainer = styled.div`
   height: 100%;
   width: 100%;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 15px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  }
+  
+  @media (max-width: 768px) {
+    min-height: 200px;
+  }
 `;
+
 
 export default EnhancedMetricCard;
 
@@ -324,17 +360,17 @@ const shimmer = keyframes`
 const CardContainer = styled.div`
   background: rgba(0, 0, 0, 0.3);
   border-radius: 20px;
-  padding: 30px;
+  padding: 25px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   height: 100%;
-  min-height: 450px;
+  min-height: 600px;
   transition: all 0.3s ease;
   animation: ${props => css`${floatAnimation} 8s ease-in-out infinite;`};
   animation-delay: ${() => Math.random() * 2}s;
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: 20px;
+  grid-template-rows: auto auto 1fr;
+  gap: 15px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
   
   &:hover {
@@ -344,15 +380,15 @@ const CardContainer = styled.div`
   }
 
   @media (max-width: 768px) {
-    padding: 25px;
-    gap: 15px;
+    padding: 20px;
+    gap: 12px;
     min-height: 400px;
   }
 
   @media (max-width: 480px) {
-    padding: 20px;
+    padding: 15px;
     border-radius: 15px;
-    gap: 12px;
+    gap: 10px;
     min-height: 350px;
   }
 `;
@@ -362,6 +398,8 @@ const CardHeader = styled.div`
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 
   @media (max-width: 480px) {
     grid-template-columns: 1fr;
@@ -373,20 +411,25 @@ const CardHeader = styled.div`
 const CardContent = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 15px;
   height: 100%;
 `;
 
 const MetricSection = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 12px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
 `;
 
 const CurrentValueContainer = styled.div`
   display: flex;
   align-items: baseline;
   gap: 5px;
+  justify-content: center;
+  padding: 5px 0;
 `;
 
 const CurrentValue = styled.span<{ color?: string }>`
@@ -411,7 +454,8 @@ const TrendIndicator = styled.span<{ trend: 'up' | 'down' | 'stable' }>`
 const MinMaxContainer = styled.div`
   display: flex;
   justify-content: space-between;
-  gap: 10px;
+  gap: 15px;
+  margin-top: 5px;
 `;
 
 const MinMaxItem = styled.div`
@@ -419,10 +463,19 @@ const MinMaxItem = styled.div`
   flex-direction: column;
   align-items: center;
   background: rgba(255, 255, 255, 0.05);
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 10px 15px;
+  border-radius: 10px;
   flex: 1;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
 `;
+
 
 const MinMaxLabel = styled.span`
   font-size: 0.8rem;
@@ -443,7 +496,9 @@ const TooltipContainer = styled.div`
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);
   max-width: 200px;
+  animation: ${fadeIn} 0.2s ease-out;
 `;
+
 
 const TooltipTime = styled.div`
   font-size: 0.8rem;
@@ -504,15 +559,19 @@ const PauseButton = styled.button`
   border: none;
   color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
-  padding: 0;
+  padding: 8px;
   font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s ease, transform 0.2s ease;
+  transition: all 0.2s ease;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
   
   &:hover {
     color: #fff;
+    background: rgba(255, 255, 255, 0.1);
     transform: scale(1.1);
   }
   
@@ -520,6 +579,7 @@ const PauseButton = styled.button`
     transform: scale(0.95);
   }
 `;
+
 
 const InfoIcon = styled.div`
   cursor: pointer;

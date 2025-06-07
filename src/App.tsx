@@ -1,17 +1,17 @@
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState } from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faWater, faChartLine, faSliders, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { UserModeProvider } from './contexts/UserModeContext';
+import { GroupsProvider } from './contexts/GroupsContext';
 import ControlCard from './components/ControlCard';
 import EnhancedMetricCard from './components/EnhancedMetricCard';
-import OceanBackground from './components/OceanBackground';
-// Removed BackgroundAnimation import
-import Bubbles from './components/Bubbles';
+import EnhancedModeToggleButton from './components/EnhancedModeToggleButton';
 import GroupManager from './components/GroupManager';
+import EnhancedOceanBackground from './components/EnhancedOceanBackground';
+import EnhancedBubbles from './components/EnhancedBubbles';
+import EnhancedNavigation from './components/EnhancedNavigation';
 import GroupControlList from './components/GroupControlList';
-import { GroupsProvider } from './contexts/GroupsContext';
-import { UserModeProvider } from './contexts/UserModeContext';
-import ModeToggleButton from './components/ModeToggleButton';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faWater, faTimes, faSliders } from '@fortawesome/free-solid-svg-icons';
 
 const pulse = keyframes`
   0% { transform: scale(1); box-shadow: 0 0 15px rgba(14, 165, 233, 0.6); }
@@ -22,197 +22,175 @@ const pulse = keyframes`
 const pulseAnimation = css`${pulse}`;
 
 const App: React.FC = () => {
-  try {
-    const [activeTab, setActiveTab] = useState<'controls' | 'metrics'>('controls');
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'controls' | 'metrics'>('controls');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-    const toggleMobileMenu = () => {
-      setMobileMenuOpen(!mobileMenuOpen);
-    };
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
 
-    // Generate sample chart data for metrics
-    const generateChartData = (baseValue: number, variance: number, count: number = 24) => {
-      const data = [];
-      for (let i = 0; i < count; i++) {
-        const time = new Date();
-        time.setHours(time.getHours() - (count - i));
-        const timeString = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
-        const randomVariance = (Math.random() * 2 - 1) * variance;
-        const value = baseValue + randomVariance;
-        
-        data.push({
-          time: timeString,
-          value
-        });
-      }
-      return data;
-    };
+  // Generate sample chart data for metrics
+  const generateChartData = (baseValue: number, variance: number, count: number = 24) => {
+    const data = [];
+    for (let i = 0; i < count; i++) {
+      const time = new Date();
+      time.setHours(time.getHours() - (count - i));
+      const timeString = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      const randomVariance = (Math.random() * 2 - 1) * variance;
+      const value = baseValue + randomVariance;
+      
+      data.push({
+        time: timeString,
+        value
+      });
+    }
+    return data;
+  };
 
-    return (
-      <UserModeProvider>
-        <GroupsProvider>
-          <MainWrapper>
-            <OceanBackground />
-            {/* Removed BackgroundAnimation component */}
-            <Bubbles />
+  return (
+    <UserModeProvider>
+      <GroupsProvider>
+        <MainWrapper>
+          <EnhancedOceanBackground />
+          <EnhancedBubbles />
+          
+          <ContentContainer>
+            <Header>
+              <Title>
+                <WaveIcon>
+                  <FontAwesomeIcon icon={faWater} />
+                </WaveIcon>
+                Wave Habitat
+              </Title>
+
+              <HeaderControls>
+                <EnhancedModeToggleButton />
+                <MobileMenuButton onClick={toggleMobileMenu}>
+                  {mobileMenuOpen ? (
+                    <FontAwesomeIcon icon={faTimes} />
+                  ) : (
+                    <FontAwesomeIcon icon={faSliders} />
+                  )}
+                </MobileMenuButton>
+              </HeaderControls>
+            </Header>
+
+            <EnhancedNavigation 
+              activeTab={activeTab} 
+              setActiveTab={setActiveTab} 
+              mobileMenuOpen={mobileMenuOpen} 
+              setMobileMenuOpen={setMobileMenuOpen} 
+            />
             
-            <ContentContainer>
-              <Header>
-                <Title>
-                  <WaveIcon>
-                    <FontAwesomeIcon icon={faWater} />
-                  </WaveIcon>
-                  Wave Habitat
-                </Title>
-
-                <HeaderControls>
-                  <ModeToggleButton />
-                  <MobileMenuButton onClick={toggleMobileMenu}>
-                    {mobileMenuOpen ? (
-                      <FontAwesomeIcon icon={faTimes} />
-                    ) : (
-                      <FontAwesomeIcon icon={faSliders} />
-                    )}
-                  </MobileMenuButton>
-                </HeaderControls>
-              </Header>
-
-              <Navigation mobileOpen={mobileMenuOpen}>
-                <NavTab 
-                  active={activeTab === 'controls'} 
-                  onClick={() => {
-                    setActiveTab('controls');
-                    setMobileMenuOpen(false);
-                  }}
-                >
-                  <FontAwesomeIcon icon={faSliders} />
-                  <span>Controls</span>
-                </NavTab>
-                <NavTab 
-                  active={activeTab === 'metrics'} 
-                  onClick={() => {
-                    setActiveTab('metrics');
-                    setMobileMenuOpen(false);
-                  }}
-                >
-                  <FontAwesomeIcon icon={faChartLine} />
-                  <span>Metrics</span>
-                </NavTab>
-              </Navigation>
+            <ScrollableContent>
+              {activeTab === 'controls' && (
+                <SectionContainer>
+                  <SectionTitle>Control Panel</SectionTitle>
+                  <ControlPanelContainer>
+                    <GroupsSection>
+                      <GroupManager />
+                      <GroupControlList />
+                    </GroupsSection>
+                    <ControlsSection>
+                      <ControlPanel>
+                        <ControlCard title="Wave Generator" icon="lightbulb" controlId="1" groupId="1" groupName="Lighting" />
+                        <ControlCard title="Oxygen Pump" icon="lightbulb" controlId="3" groupId="2" groupName="Water Systems" />
+                        <ControlCard title="Temperature" icon="lightbulb" controlId="5" groupId="3" groupName="Environment" />
+                        <ControlCard title="Lighting" icon="lightbulb" controlId="2" groupId="1" groupName="Lighting" />
+                        <ControlCard title="Feeding System" icon="moon" controlId="6" groupId="3" groupName="Environment" />
+                        <ControlCard title="Water Filter" icon="moon" controlId="4" groupId="2" groupName="Water Systems" />
+                      </ControlPanel>
+                    </ControlsSection>
+                  </ControlPanelContainer>
+                </SectionContainer>
+              )}
               
-              <ScrollableContent>
-                {activeTab === 'controls' && (
-                  <SectionContainer>
-                    <SectionTitle>Control Panel</SectionTitle>
-                    <ControlPanelContainer>
-                      <GroupsSection>
-                        <GroupManager />
-                        <GroupControlList />
-                      </GroupsSection>
-                      <ControlsSection>
-                        <ControlPanel>
-                          <ControlCard title="Wave Generator" icon="lightbulb" controlId="1" groupId="1" groupName="Lighting" />
-                          <ControlCard title="Oxygen Pump" icon="lightbulb" controlId="3" groupId="2" groupName="Water Systems" />
-                          <ControlCard title="Temperature" icon="lightbulb" controlId="5" groupId="3" groupName="Environment" />
-                          <ControlCard title="Lighting" icon="lightbulb" controlId="2" groupId="1" groupName="Lighting" />
-                          <ControlCard title="Feeding System" icon="moon" controlId="6" groupId="3" groupName="Environment" />
-                          <ControlCard title="Water Filter" icon="moon" controlId="4" groupId="2" groupName="Water Systems" />
-                        </ControlPanel>
-                      </ControlsSection>
-                    </ControlPanelContainer>
-                  </SectionContainer>
-                )}
-                
-                {activeTab === 'metrics' && (
-                  <SectionContainer>
-                    <SectionTitle>Water Metrics</SectionTitle>
-                    <MetricsPanel>
-                      <EnhancedMetricCard 
-                        title="Oxygen Levels" 
-                        icon="oxygen"
-                        currentValue={8.5} 
-                        unit="mg/L" 
-                        minValue={7.0} 
-                        maxValue={10.0} 
-                        chartData={generateChartData(8.5, 0.5)}
-                        isLive={true}
-                        trend="up"
-                        color="#4fc3f7"
-                      />
-                      <EnhancedMetricCard 
-                        title="Temperature" 
-                        icon="temperature"
-                        currentValue={24.2} 
-                        unit="°C" 
-                        minValue={22.0} 
-                        maxValue={26.0} 
-                        chartData={generateChartData(24.2, 0.3)}
-                        isLive={true}
-                        trend="stable"
-                        color="#ff9800"
-                      />
-                      <EnhancedMetricCard 
-                        title="pH Level" 
-                        icon="ph"
-                        currentValue={7.8} 
-                        unit="pH" 
-                        minValue={7.0} 
-                        maxValue={8.5} 
-                        chartData={generateChartData(7.8, 0.2)}
-                        isLive={true}
-                        trend="stable"
-                        color="#4caf50"
-                      />
-                      <EnhancedMetricCard 
-                        title="Salinity" 
-                        icon="water"
-                        currentValue={35.2} 
-                        unit="ppt" 
-                        minValue={34.0} 
-                        maxValue={36.5} 
-                        chartData={generateChartData(35.2, 0.4)}
-                        isLive={true}
-                        trend="down"
-                        color="#9c27b0"
-                      />
-                      <EnhancedMetricCard 
-                        title="Turbidity" 
-                        icon="water"
-                        currentValue={1.2} 
-                        unit="NTU" 
-                        minValue={0.5} 
-                        maxValue={2.0} 
-                        chartData={generateChartData(1.2, 0.3)}
-                        isLive={true}
-                        trend="stable"
-                        color="#795548"
-                      />
-                      <EnhancedMetricCard 
-                        title="Ammonia" 
-                        icon="water"
-                        currentValue={0.05} 
-                        unit="ppm" 
-                        minValue={0.0} 
-                        maxValue={0.1} 
-                        chartData={generateChartData(0.05, 0.02)}
-                        isLive={true}
-                        trend="stable"
-                        color="#f44336"
-                      />
-                    </MetricsPanel>
-                  </SectionContainer>
-                )}
-              </ScrollableContent>
-            </ContentContainer>
-          </MainWrapper>
-        </GroupsProvider>
-      </UserModeProvider>
-    );
-  } catch (err) {
-    console.error("Error rendering App:", err);
-    return <div style={{ color: 'white' }}>Something went wrong. Check console.</div>;
-  }
+              {activeTab === 'metrics' && (
+                <SectionContainer>
+                  <SectionTitle>Water Metrics</SectionTitle>
+                  <MetricsPanel>
+                    <EnhancedMetricCard 
+                      title="Oxygen Levels" 
+                      icon="oxygen"
+                      currentValue={8.5} 
+                      unit="mg/L" 
+                      minValue={7.0} 
+                      maxValue={10.0} 
+                      chartData={generateChartData(8.5, 0.5)}
+                      isLive={true}
+                      trend="up"
+                      color="#4fc3f7"
+                    />
+                    <EnhancedMetricCard 
+                      title="Temperature" 
+                      icon="temperature"
+                      currentValue={24.2} 
+                      unit="°C" 
+                      minValue={22.0} 
+                      maxValue={26.0} 
+                      chartData={generateChartData(24.2, 0.3)}
+                      isLive={true}
+                      trend="stable"
+                      color="#ff9800"
+                    />
+                    <EnhancedMetricCard 
+                      title="pH Level" 
+                      icon="ph"
+                      currentValue={7.8} 
+                      unit="pH" 
+                      minValue={7.0} 
+                      maxValue={8.5} 
+                      chartData={generateChartData(7.8, 0.2)}
+                      isLive={true}
+                      trend="stable"
+                      color="#4caf50"
+                    />
+                    <EnhancedMetricCard 
+                      title="Salinity" 
+                      icon="water"
+                      currentValue={35.2} 
+                      unit="ppt" 
+                      minValue={34.0} 
+                      maxValue={36.5} 
+                      chartData={generateChartData(35.2, 0.4)}
+                      isLive={true}
+                      trend="down"
+                      color="#9c27b0"
+                    />
+                    <EnhancedMetricCard 
+                      title="Turbidity" 
+                      icon="water"
+                      currentValue={1.2} 
+                      unit="NTU" 
+                      minValue={0.5} 
+                      maxValue={2.0} 
+                      chartData={generateChartData(1.2, 0.3)}
+                      isLive={true}
+                      trend="stable"
+                      color="#795548"
+                    />
+                    <EnhancedMetricCard 
+                      title="Ammonia" 
+                      icon="water"
+                      currentValue={0.05} 
+                      unit="ppm" 
+                      minValue={0.0} 
+                      maxValue={0.1} 
+                      chartData={generateChartData(0.05, 0.02)}
+                      isLive={true}
+                      trend="stable"
+                      color="#f44336"
+                    />
+                  </MetricsPanel>
+                </SectionContainer>
+              )}
+            </ScrollableContent>
+          </ContentContainer>
+        </MainWrapper>
+      </GroupsProvider>
+    </UserModeProvider>
+  );
 };
 
 // Add this new styled component
@@ -391,7 +369,7 @@ const ControlsSection = styled.div`
 
 const ControlPanel = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: 1fr;
   gap: 20px;
   overflow-y: auto;
   padding-right: 10px;
@@ -429,7 +407,7 @@ const ControlPanel = styled.div`
 
 const MetricsPanel = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: 1fr;
   gap: 20px;
   overflow-y: auto;
   padding-right: 10px;
@@ -490,59 +468,9 @@ const MobileMenuButton = styled.button`
   }
 `;
 
-const Navigation = styled.nav<{ mobileOpen?: boolean }>`
-  display: flex;
-  gap: 20px;
-  margin: 10px 0;
-  
-  @media (max-width: 768px) {
-    position: absolute;
-    top: 80px;
-    left: 0;
-    right: 0;
-    background: rgba(4, 28, 44, 0.9);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    flex-direction: column;
-    padding: 15px;
-    border-radius: 0 0 12px 12px;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-    z-index: 100;
-    transform: ${props => props.mobileOpen ? 'translateY(0)' : 'translateY(-150%)'};
-    opacity: ${props => props.mobileOpen ? 1 : 0};
-    transition: all 0.3s ease;
-    pointer-events: ${props => props.mobileOpen ? 'all' : 'none'};
-  }
-`;
+// Navigation component has been replaced with EnhancedNavigation
 
-const NavTab = styled.button<{ active: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: ${props => props.active ? 'rgba(14, 165, 233, 0.2)' : 'rgba(255, 255, 255, 0.05)'};
-  color: ${props => props.active ? '#4fc3f7' : 'white'};
-  border: 1px solid ${props => props.active ? 'rgba(14, 165, 233, 0.5)' : 'rgba(255, 255, 255, 0.1)'};
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 1rem;
-  font-weight: 500;
-  
-  &:hover {
-    background: ${props => props.active ? 'rgba(14, 165, 233, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
-  }
-  
-  svg {
-    font-size: 1.1rem;
-  }
-  
-  @media (max-width: 768px) {
-    width: 100%;
-    padding: 12px 20px;
-    justify-content: center;
-  }
-`;
+// NavTab component has been replaced with EnhancedNavigation
 
 const ScrollableContent = styled.div`
   flex: 1;

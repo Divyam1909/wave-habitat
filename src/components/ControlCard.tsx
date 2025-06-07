@@ -15,6 +15,15 @@ interface ControlCardProps {
 
 type Mode = 'off' | 'auto' | 'on';
 
+interface ButtonProps {
+  isActive?: boolean;
+  variant?: 'on' | 'auto' | 'off';
+  color?: string;
+  active?: boolean;
+  onClick?: () => void;
+  children?: React.ReactNode;
+}
+
 const float = keyframes`
   0% {
     transform: translateY(0px) rotate(0deg);
@@ -109,6 +118,17 @@ const ControlCard: React.FC<ControlCardProps> = ({ title, icon, controlId, group
     }
   };
 
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    if (mode === 'auto') {
+      intervalId = setInterval(() => {
+        // Toggle between 'on' and 'off' for auto mode
+        updateControlMode(groupId, controlId, isActive ? 'off' : 'on');
+      }, 2000);
+    }
+    return () => clearInterval(intervalId);
+  }, [mode, isActive, groupId, controlId, updateControlMode]);
+
   return (
     <CardContainer active={isActive}>
       <CardHeader>
@@ -196,8 +216,8 @@ const ControlCard: React.FC<ControlCardProps> = ({ title, icon, controlId, group
 const CardContainer = styled.div<{ active: boolean }>`
   background: ${props => props.active ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.1)'};
   backdrop-filter: blur(10px);
-  border-radius: 25px;
-  padding: 50px;
+  border-radius: 20px;
+  padding: 25px;
   box-shadow: ${props => props.active ? 
     '0 8px 32px 0 rgba(31, 38, 135, 0.3), 0 0 15px rgba(0, 195, 255, 0.3)' : 
     '0 8px 32px 0 rgba(31, 38, 135, 0.2)'};
@@ -209,14 +229,20 @@ const CardContainer = styled.div<{ active: boolean }>`
   transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   transform-style: preserve-3d;
   perspective: 1000px;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 15px;
+  min-height: 350px;
 
   @media (max-width: 768px) {
-    padding: 30px;
+    padding: 20px;
+    gap: 12px;
   }
 
   @media (max-width: 480px) {
-    padding: 20px;
-    border-radius: 20px;
+    padding: 15px;
+    border-radius: 15px;
+    gap: 10px;
   }
 `;
 
@@ -224,19 +250,18 @@ const CardHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 40px;
-  padding: 0 20px;
+  padding: 0 10px 15px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 
   @media (max-width: 768px) {
-    padding: 0 10px;
-    margin-bottom: 30px;
+    padding: 0 5px 12px 5px;
   }
 
   @media (max-width: 480px) {
     flex-direction: column;
     gap: 15px;
     text-align: center;
-    margin-bottom: 25px;
+    padding-bottom: 15px;
   }
 `;
 
@@ -244,6 +269,7 @@ const TitleSection = styled.div`
   display: flex;
   align-items: flex-start;
   gap: 15px;
+  padding: 5px;
 
   h2 {
     font-size: 1.3em;
@@ -354,95 +380,223 @@ const SettingsButton = styled.button<{ active: boolean }>`
 `;
 
 const SettingsPanel = styled.div`
-  margin-top: 20px;
-  padding: 20px;
   background: rgba(0, 0, 0, 0.2);
-  border-radius: 15px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 15px;
+  margin-top: 10px;
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   animation: fadeIn 0.3s ease-out forwards;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  width: 100%;
   
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  
+  @media (max-width: 768px) {
+    padding: 12px;
+    gap: 10px;
+    margin-top: 8px;
+    margin-bottom: 12px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 10px;
+    gap: 8px;
+    margin-top: 6px;
+    margin-bottom: 10px;
+  }
 `;
 
 const SettingRow = styled.div`
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 5px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
   margin-bottom: 15px;
   
   &:last-child {
     margin-bottom: 0;
   }
+  
+  @media (max-width: 768px) {
+    gap: 12px;
+    padding: 4px;
+  }
+  
+  @media (max-width: 480px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 3px;
+  }
 `;
 
-const SettingLabel = styled.span`
-  font-size: 0.9em;
-  color: rgba(255, 255, 255, 0.8);
+const SettingLabel = styled.div`
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  padding: 5px;
+  letter-spacing: 0.5px;
+  
+  @media (max-width: 768px) {
+    font-size: 14px;
+    padding: 3px;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 13px;
+    padding: 2px;
+  }
 `;
 
-const RangeSlider = styled.input`
+const RangeSlider = styled.input.attrs({ type: 'range' })`
   -webkit-appearance: none;
-  width: 60%;
-  height: 6px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.2);
+  width: 150px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
   outline: none;
+  margin: 0 10px;
   
   &::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
+    background: #00C3FF;
     border-radius: 50%;
-    background: #00c3ff;
     cursor: pointer;
     box-shadow: 0 0 10px rgba(0, 195, 255, 0.5);
     transition: all 0.2s ease;
-  }
-  
-  &::-webkit-slider-thumb:hover {
-    transform: scale(1.1);
-    box-shadow: 0 0 15px rgba(0, 195, 255, 0.7);
   }
   
   &::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
+    background: #00C3FF;
     border-radius: 50%;
-    background: #00c3ff;
     cursor: pointer;
-    box-shadow: 0 0 10px rgba(0, 195, 255, 0.5);
     border: none;
+    box-shadow: 0 0 10px rgba(0, 195, 255, 0.5);
     transition: all 0.2s ease;
   }
   
-  &::-moz-range-thumb:hover {
+  &:hover::-webkit-slider-thumb {
     transform: scale(1.1);
     box-shadow: 0 0 15px rgba(0, 195, 255, 0.7);
+  }
+  
+  &:hover::-moz-range-thumb {
+    transform: scale(1.1);
+    box-shadow: 0 0 15px rgba(0, 195, 255, 0.7);
+  }
+  
+  @media (max-width: 768px) {
+    width: 120px;
+    height: 6px;
+    margin: 0 8px;
+    
+    &::-webkit-slider-thumb {
+      width: 18px;
+      height: 18px;
+    }
+    
+    &::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    width: 100%;
+    margin: 5px 0;
+    
+    &::-webkit-slider-thumb {
+      width: 16px;
+      height: 16px;
+    }
+    
+    &::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+    }
   }
 `;
 
 const ColorOptions = styled.div`
   display: flex;
-  gap: 10px;
+  gap: 12px;
+  padding: 5px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  
+  @media (max-width: 768px) {
+    gap: 10px;
+    padding: 3px;
+  }
+  
+  @media (max-width: 480px) {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 2px;
+  }
 `;
 
 const ColorOption = styled.button<{ color: string; selected?: boolean }>`
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background-color: ${props => props.color};
   border: 2px solid ${props => props.selected ? '#fff' : 'transparent'};
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: ${props => props.selected ? `0 0 10px ${props.color}` : 'none'};
+  box-shadow: ${props => props.selected ? `0 0 10px ${props.color}` : '0 2px 5px rgba(0, 0, 0, 0.2)'};
+  position: relative;
+  overflow: hidden;
   
   &:hover {
     transform: scale(1.1);
     box-shadow: 0 0 10px ${props => props.color};
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%);
+    opacity: ${props => props.selected ? 1 : 0};
+    transition: opacity 0.2s ease;
+  }
+  
+  &:hover::after {
+    opacity: 1;
+  }
+  
+  @media (max-width: 768px) {
+    width: 24px;
+    height: 24px;
+  }
+  
+  @media (max-width: 480px) {
+    width: 22px;
+    height: 22px;
   }
 `;
 
@@ -450,25 +604,34 @@ const ControlButtonsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 15px;
-
+  margin-top: 10px;
+  width: 100%;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  
   @media (max-width: 768px) {
-    gap: 10px;
+    gap: 12px;
+    padding: 8px;
   }
-
+  
   @media (max-width: 480px) {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 10px;
+    padding: 5px;
   }
 `;
 
-interface ButtonProps {
+// ButtonProps interface is already defined at the top of the file
+
+interface WaterEffectProps {
   isActive: boolean;
-  variant: 'off' | 'auto' | 'on';
+  variant?: 'off' | 'auto' | 'on';
   active?: boolean;
   color: string;
 }
 
-const WaterEffect = styled.div<{ isActive: boolean; variant?: 'off' | 'auto' | 'on'; active?: boolean; color: string }>`
+const WaterEffect = styled.div<WaterEffectProps>`
   width: 100%;
   height: 70px;
   position: absolute;
@@ -533,85 +696,122 @@ const WaterEffect = styled.div<{ isActive: boolean; variant?: 'off' | 'auto' | '
 `;
 
 const Button = styled.button<ButtonProps>`
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid ${props => props.isActive ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
-  border-radius: 15px;
-  padding: 15px 10px;
-  color: white;
   position: relative;
-  overflow: hidden;
+  background: ${props => props.isActive ? 
+    props.variant === 'on' ? 'linear-gradient(135deg, #00C3FF, #0077FF)' :
+    props.variant === 'auto' ? 'linear-gradient(135deg, #FF9D00, #FF6B00)' :
+    'linear-gradient(135deg, #FF0099, #FF005C)' :
+    'rgba(255, 255, 255, 0.05)'};
+  color: ${props => props.isActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.7)'};
+  border: none;
+  border-radius: 12px;
+  padding: 15px;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: ${props => props.isActive ? `0 0 15px ${props.color}80` : 'none'};
-  transform: ${props => props.isActive ? 'translateY(-2px)' : 'none'};
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: ${props => props.isActive ? 
+    '0 8px 16px rgba(0, 0, 0, 0.2), 0 0 15px rgba(0, 195, 255, 0.3)' : 
+    '0 4px 12px rgba(0, 0, 0, 0.1)'};
+  text-shadow: ${props => props.isActive ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none'};
   height: 100%;
-  min-height: 80px;
+  min-height: 120px;
   
   &:hover {
-    background: rgba(0, 0, 0, 0.4);
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    transform: translateY(-3px);
+    box-shadow: ${props => props.isActive ? 
+      '0 12px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 195, 255, 0.4)' : 
+      '0 8px 20px rgba(0, 0, 0, 0.2)'};
+    background: ${props => props.isActive ? 
+      props.variant === 'on' ? 'linear-gradient(135deg, #00D4FF, #0088FF)' :
+      props.variant === 'auto' ? 'linear-gradient(135deg, #FFAE00, #FF7C00)' :
+      'linear-gradient(135deg, #FF00AA, #FF006D)' :
+      'rgba(255, 255, 255, 0.1)'};
   }
   
   &:active {
-    transform: translateY(1px);
-  }
-
-  &::after {
-    content: '';
-    display: block;
-    position: absolute;
-    width: 30px;
-    height: 30px;
-    top: 50%;
-    left: 50%;
-    background-color: rgba(255, 255, 255, 0.5);
-    opacity: 0;
-    border-radius: 100%;
-    transform: translate(-50%, -50%);
+    transform: translateY(-1px);
+    box-shadow: ${props => props.isActive ? 
+      '0 4px 12px rgba(0, 0, 0, 0.2), 0 0 10px rgba(0, 195, 255, 0.2)' : 
+      '0 2px 8px rgba(0, 0, 0, 0.1)'};
   }
   
-  &:active::after {
-    animation: ${ripple} 0.6s ease-out;
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.8);
+    opacity: 0;
+    border-radius: 100%;
+    transform: scale(1, 1) translate(-50%);
+    transform-origin: 50% 50%;
   }
-
+  
+  &:focus:not(:active)::after {
+    animation: ${ripple} 1s ease-out;
+  }
+  
   @media (max-width: 768px) {
-    padding: 12px 8px;
-    border-radius: 12px;
-    min-height: 70px;
+    padding: 12px;
+    font-size: 15px;
+    gap: 8px;
+    min-height: 100px;
   }
   
   @media (max-width: 480px) {
-    min-height: 60px;
+    padding: 10px;
+    font-size: 14px;
+    gap: 6px;
+    min-height: 80px;
   }
 `;
 
 const ButtonContent = styled.div`
-  position: relative;
-  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 10px;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  padding: 5px;
   
   @media (max-width: 768px) {
     gap: 8px;
+    padding: 3px;
   }
   
   @media (max-width: 480px) {
-    flex-direction: row;
-    justify-content: center;
-    gap: 12px;
+    gap: 6px;
+    padding: 2px;
   }
 `;
 
 const ButtonText = styled.span`
-  font-size: 0.9em;
-  font-weight: 500;
-  letter-spacing: 1px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.5px;
+  margin-top: 5px;
   
   @media (max-width: 768px) {
-    font-size: 0.85em;
+    font-size: 13px;
+    margin-top: 3px;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 12px;
+    margin-top: 2px;
   }
 `;
 
